@@ -443,3 +443,26 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 
 ### 下次从这里开始
 - Task 10：类型化 IPC 与主进程装配，把打卡、备份与既有服务暴露给渲染层。
+
+---
+
+## 2026-10-18 · Task 9 修复轮 1
+
+### 做了什么
+- `upsertDailyLog` 的 `ON CONFLICT ... DO UPDATE` 末尾增加 `deleted_at = NULL`：此前若同 `(profile_id, date)` 行已被软删除，`getDailyLog` 看不到它，upsert 写入新值却不清除删除标记，最后通过非空断言返回运行时的 `null`，调用方首次取属性就会崩溃。现在 upsert 会真正“复活”该行。
+- `validate` 新增日期格式校验 `isCalendarDate`：要求严格 `YYYY-MM-DD` 且为真实日历日；`''`、`'2026-1-5'`、`'2026-02-31'` 等一律抛 `INVALID_DAILY_LOG`，避免脏日期进入文本区间查询。
+- `tests/dailyLog.test.ts` 新增 2 个用例（软删除行复活、畸形日期拒绝）。
+- `tests/backup.test.ts` 新增「never exports journal notes, but the database copy keeps them」：写入 `note: '今天很焦虑'` 后导出，断言 JSON 中 `dailyLogs[0].note === null`、整个 JSON 字符串不含原文，再打开备份的 `.db` 断言原文仍在，把隐私红线钉在测试里。
+
+### 验证
+- `npm test -- tests/dailyLog.test.ts tests/backup.test.ts`：RED（软删除行返回 `null`、畸形日期不抛错）→ GREEN，6 passed（2 files）
+- `npm test`：44 passed（10 files），无回归
+- `npm run typecheck`：通过，无错误
+
+### 决策 / 变化
+- 软删除采用“upsert 即复活”语义：用户重新打卡同一日期时，不应因历史删除标记而丢失新记录。
+- 日期校验放在 repository 边界，所有写入路径共享；仍不接受 `Date` 对象或带时间的字符串。
+- 备份测试同时验证两件事：默认 JSON 导出脱敏、SQLite 副本保留反思层原文，后者仅在用户主动保管的本地文件中存在。
+
+### 下次从这里开始
+- Task 10：类型化 IPC 与主进程装配，把打卡、备份与既有服务暴露给渲染层。

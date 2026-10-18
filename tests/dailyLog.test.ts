@@ -44,4 +44,46 @@ describe('upsertDailyLog', () => {
     ).toThrow('INVALID_DAILY_LOG');
     db.close();
   });
+
+  it('restores a soft-deleted row on upsert', () => {
+    const db = makeTestDb();
+    insertTestProfile(db);
+    upsertDailyLog(
+      db,
+      'profile-test',
+      { date: '2026-10-18', sleepHours: 7, energy: 4, mood: 3, focusSelf: 4, note: '旧' },
+      now
+    );
+    db.prepare(
+      'UPDATE daily_log SET deleted_at = ? WHERE profile_id = ? AND date = ?'
+    ).run(now + 500, 'profile-test', '2026-10-18');
+
+    const restored = upsertDailyLog(
+      db,
+      'profile-test',
+      { date: '2026-10-18', sleepHours: 6, energy: 3, mood: 4, focusSelf: 3, note: null },
+      now + 1000
+    );
+
+    expect(restored).not.toBeNull();
+    expect(restored.sleepHours).toBe(6);
+    expect(restored.note).toBeNull();
+    db.close();
+  });
+
+  it('rejects malformed dates', () => {
+    const db = makeTestDb();
+    insertTestProfile(db);
+    for (const date of ['2026-1-5', '2026-02-31']) {
+      expect(() =>
+        upsertDailyLog(
+          db,
+          'profile-test',
+          { date, sleepHours: 7, energy: 3, mood: 3, focusSelf: 3 },
+          now
+        )
+      ).toThrow('INVALID_DAILY_LOG');
+    }
+    db.close();
+  });
 });

@@ -3,10 +3,17 @@ import { randomUUID } from 'node:crypto';
 import type { DailyLog, DailyLogInput } from '../../shared/types';
 import { mapDailyLog, type DailyLogRow } from '../db/rows';
 
+function isCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 function validate(input: DailyLogInput): void {
   const inRange = (v: number | null, min: number, max: number): boolean =>
     v === null || (Number.isFinite(v) && v >= min && v <= max);
   if (
+    !isCalendarDate(input.date) ||
     !inRange(input.sleepHours, 0, 24) ||
     !inRange(input.energy, 1, 5) ||
     !inRange(input.mood, 1, 5) ||
@@ -39,7 +46,8 @@ export function upsertDailyLog(
        focus_self = excluded.focus_self,
        note = excluded.note,
        checkin_at = excluded.checkin_at,
-       updated_at = excluded.updated_at`
+       updated_at = excluded.updated_at,
+       deleted_at = NULL`
   ).run(
     id,
     profileId,
