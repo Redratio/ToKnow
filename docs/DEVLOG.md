@@ -466,3 +466,28 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 
 ### 下次从这里开始
 - Task 10：类型化 IPC 与主进程装配，把打卡、备份与既有服务暴露给渲染层。
+
+---
+
+## 2026-10-18 · Task 10：类型化 IPC 与主进程装配
+
+### 做了什么
+- 新增 `src/shared/ipc.ts`：单一 `IPC` 通道常量对象（bootstrap / onboarding / today / completeTask / checkIn / tree / exportBackup / settings），`AppApi` 定义渲染层 `window.api` 的全部方法签名，另有 `Bootstrap` 与 `AppSettings` 两个返回形状；所有参数与返回值均来自 `src/shared/types.ts` 的领域类型。
+- 新增 `src/main/ipc.ts`：`createHandlers({ db, dbPath, backupDir, version })` 把 onboarding、今日视图、任务完成、打卡、知识树、备份、设置装配到同一处理器对象；读路径统一经 `getActiveProfile` 取当前 profile，缺失时抛 `NO_PROFILE`。`registerIpc(ipcMain, handlers)` 逐一注册 8 个 `IPC` 通道，入参显式标注 `OnboardingInput` / `CompleteTaskInput` / `DailyLogInput`，处理器只返回领域类型，不暴露数据库行。
+- 替换 `src/preload/index.ts`：以 `AppApi` 类型约束的单一对象封装全部 `ipcRenderer.invoke`，通过 `contextBridge.exposeInMainWorld('api', api)` 暴露；桥内无 `any`，渲染层无需直接接触 `ipcRenderer`。
+- 新增 `src/renderer/src/env.d.ts`：为 `Window` 声明 `api: AppApi`，让渲染层获得端到端类型。
+- 扩展 `src/main/index.ts`：在 `app.whenReady()` 中按 `userData` 创建 `toknow.db` 与 `backups/` 目录，`createDb` + `setDb` 后调用 `registerIpc` 完成装配；窗口背景色改为 `#F7F3EA`，并在 `before-quit` 关闭数据库连接。保留原有窗口创建、开发 URL / 生产文件加载与 macOS activate 行为。
+
+### 验证
+- `npm test -- tests/ipc.test.ts`：RED（`Cannot find module '../src/main/ipc'`）→ GREEN，1 passed
+- `npm test`：45 passed（11 files），无回归（Task 9 后基线 44 passed / 10 files）
+- `npm run typecheck`：通过，无错误
+- 测试覆盖完整链路：空库 bootstrap → onboarding → 今日计划（3 条任务）→ 完成主线 → 打卡 → 今日视图回读 → 知识树 4 个科目 → 设置中的 `dbPath`；全程直接调用处理器对象，不依赖 Electron 运行时。
+
+### 决策 / 变化
+- 与简报一致，未偏离既有接口：`getTodayView` 使用其 4 参数签名（含 `nowMs`），`exportBackup` 使用 `(db, destDir, now?)`，`upsertDailyLog` 使用 `(db, profileId, input, nowMs)`。
+- IPC 错误沿用既有领域错误码（`NO_PROFILE`、`TASK_NOT_FOUND`、`INVALID_ONBOARDING:*`、`INVALID_DAILY_LOG`），由 Electron 的 `ipcMain.handle` 序列化为错误消息字符串传给渲染层，不传堆栈；渲染层可按前缀归一化。
+- 未新增依赖、未改 schema、未改领域类型；主进程启动路径与 Electron 构建配置保持原样。
+
+### 下次从这里开始
+- Task 11：渲染层接入 `window.api`，用类型化 IPC 完成今日页/树页的数据加载与状态刷新。
