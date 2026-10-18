@@ -121,3 +121,27 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 ### 下次从这里开始
 - 
 ```
+
+---
+
+## 2026-10-18 · Task 1：脚手架与工具链
+
+### 做了什么
+- 建立 Electron + React + TypeScript + Vitest 脚手架：`package.json`、`electron.vite.config.ts`、`tsconfig.json`、`tsconfig.node.json`、`vitest.config.ts`、`.gitignore`。
+- 写入最小 Electron 入口（主进程 / preload / renderer），窗口可加载开发服务器或打包后的 `index.html`。
+- 添加临时测试 `tests/date.test.ts`，验证 Vitest 可运行（Task 2 会替换为真实的日期边界测试）。
+- 产品品牌按协调者决定改为 **ToKnow**：包名 `toknow`、窗口与页面标题 `ToKnow`、占位文案 `ToKnow · P0`；「主线」作为每日主线的功能概念不变。
+
+### 验证
+- `npm test`：1 passed（1 file）
+- `npm run typecheck`：通过，无错误
+- `npm run build`：主进程、preload、renderer 均构建成功
+- 手动验收：`npm run dev` 成功启动 Vite 与 Electron（Electron 二进制首次缺失，手动执行 `node node_modules/electron/install.js` 后恢复）；本环境无法目视确认窗口内容
+
+### 决策 / 变化
+- `better-sqlite3` 安装时通过 `electron-rebuild` 成功重编译，无阻塞。
+- Electron 包的 postinstall 未下载二进制（`path.txt`/`dist` 缺失），已手动补装；后续若重装依赖需留意。
+- 保留环境准备阶段对 DEVLOG 与计划文件的既有改动，一并提交。
+
+### 下次从这里开始
+- Task 2：共享类型与 04:00 日期边界，替换 `tests/date.test.ts` 占位测试。
