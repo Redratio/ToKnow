@@ -30,11 +30,23 @@ describe('P0 end-to-end', () => {
     expect(view.plan.mainline).not.toBeNull();
     expect(view.plan.supporting).toHaveLength(2);
 
-    handlers.completeTask({
+    const masteryBefore = new Map(
+      handlers
+        .getTree()
+        .flatMap((s) => s.modules)
+        .flatMap((m) => m.nodes)
+        .map((n) => [n.id, n.state.mastery] as const)
+    );
+    const completed = handlers.completeTask({
       taskId: view.plan.mainline!.id,
       actualMin: 50,
       performance: 4
     });
+    const touchedMastery = Object.entries(completed.mastery);
+    expect(touchedMastery.length).toBeGreaterThan(0);
+    for (const [nodeId, mastery] of touchedMastery) {
+      expect(mastery).toBeGreaterThan(masteryBefore.get(nodeId) ?? 0);
+    }
     handlers.checkIn({
       date: view.date,
       sleepHours: 7.5,
@@ -50,29 +62,31 @@ describe('P0 end-to-end', () => {
 
     const tree = handlers.getTree();
     expect(tree).toHaveLength(4);
+    const [touchedNodeId, touchedMasteryAfter] = touchedMastery[0];
     const touched = tree
       .flatMap((s) => s.modules)
       .flatMap((m) => m.nodes)
-      .find((n) => n.state.mastery > 0);
+      .find((n) => n.id === touchedNodeId);
     expect(touched).toBeDefined();
+    expect(touched!.state.mastery).toBe(touchedMasteryAfter);
 
     const manual = handlers.createTask({
       title: '手动作业',
-      date: '2026-10-20',
+      date: '2099-12-20',
       plannedMin: 30
     });
-    expect(handlers.getCalendarDay('2026-10-20').tasks).toHaveLength(1);
+    expect(handlers.getCalendarDay('2099-12-20').tasks).toHaveLength(1);
 
     const moved = handlers.moveTask({
       taskId: manual.id,
-      date: '2026-10-21'
+      date: '2099-12-21'
     });
-    expect(moved.scheduledDate).toBe('2026-10-21');
+    expect(moved.scheduledDate).toBe('2099-12-21');
 
-    const october = handlers.getCalendarMonth(2026, 10);
-    expect(october.days).toHaveLength(31);
-    expect(october.days.find((d) => d.date === '2026-10-20')?.taskCount).toBe(0);
-    expect(october.days.find((d) => d.date === '2026-10-21')?.taskCount).toBe(1);
+    const december = handlers.getCalendarMonth(2099, 12);
+    expect(december.days).toHaveLength(31);
+    expect(december.days.find((d) => d.date === '2099-12-20')?.taskCount).toBe(0);
+    expect(december.days.find((d) => d.date === '2099-12-21')?.taskCount).toBe(1);
 
     const backup = await handlers.exportBackup();
     expect(existsSync(backup.dbPath)).toBe(true);

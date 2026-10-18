@@ -44,6 +44,15 @@ Windows：`%APPDATA%/toknow/toknow.db`
 
 所有数据仅保存在本机，P0 不发起任何网络请求。
 
+## 备份与隐私
+
+在应用右上角齿轮进入「设置」，点击「导出备份」会同时生成两个文件：
+
+- `.db`：完整的 SQLite 副本，包含每日打卡的一句话记录原文，仅供用户自己保管。
+- `.json`：可读导出，其中每条 `dailyLogs[].note` 一律为 `null`，只保留睡眠、精力、心情、专注等数值字段。
+
+也就是说，日记原文只留在本机的 `.db` 副本里，不会进入默认的 JSON 导出。P0 的规划器与 AI 边界同样不读取日记原文。
+
 ## 文档
 
 - 设计：`docs/superpowers/specs/2026-10-18-personal-study-system-design.md`
