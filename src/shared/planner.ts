@@ -63,7 +63,8 @@ export function selectDailyPlan(input: PlannerInput): DailySelection | null {
 
   if (ranked.length === 0) return null;
 
-  const maxTasks = Math.max(1, input.maxTasks ?? 3);
+  // 1 条主线 + 最多 2 条辅助是硬契约，maxTasks 只能在此区间内收窄
+  const maxTasks = Math.min(3, Math.max(1, input.maxTasks ?? 3));
   const picked = ranked.slice(0, maxTasks);
   const plannedMin = Math.max(
     10,

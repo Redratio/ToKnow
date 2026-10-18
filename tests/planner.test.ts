@@ -101,4 +101,21 @@ describe('selectDailyPlan', () => {
     });
     expect(plan?.plannedMin).toBe(30);
   });
+
+  it('never returns more than one mainline and two supporting tasks', () => {
+    const nodes: PlannerNode[] = ['a', 'b', 'c', 'd', 'e', 'f'].map((nodeId) => ({
+      ...baseNode,
+      nodeId
+    }));
+    const plan = selectDailyPlan({
+      today: '2026-10-18',
+      examDate: '2026-12-19',
+      dailyCapacityMin: 480,
+      nowMs: now,
+      nodes,
+      maxTasks: 5
+    });
+    expect(plan?.mainline).not.toBeNull();
+    expect(plan?.supporting.length).toBeLessThanOrEqual(2);
+  });
 });

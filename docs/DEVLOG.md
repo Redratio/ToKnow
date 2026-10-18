@@ -332,3 +332,20 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 
 ### 下次从这里开始
 - 后续任务：在任务完成服务中调用 `updateMastery`，把完成记录写入 `evidence` 并更新 `user_node_state`。
+
+---
+
+## 2026-10-18 · Task 6 修复轮 1
+
+### 做了什么
+- `selectDailyPlan` 的任务数上限改为 `Math.min(3, Math.max(1, input.maxTasks ?? 3))`，并加注释说明「1 条主线 + 最多 2 条辅助」是硬契约，`maxTasks` 只能在此区间内收窄。此前只保证了下界，传入 `maxTasks: 5` 会产出 1 主线 + 4 辅助。
+- `tests/planner.test.ts` 新增用例 `never returns more than one mainline and two supporting tasks`：传入 `maxTasks: 5` 并断言 `supporting.length <= 2`。
+
+### 验证
+- `npm test -- tests/planner.test.ts`：RED（`expected 4 to be less than or equal to 2`）→ GREEN，8 passed（1 file）
+- `npm test`：30 passed（7 files），无回归
+- `npm run typecheck`：通过，无错误
+- 提交仅包含 `src/shared/planner.ts`、`tests/planner.test.ts` 与本 DEVLOG 条目。
+
+### 决策 / 变化
+- 按修订后的简报逐字实现，无其他改动；未新增依赖。
