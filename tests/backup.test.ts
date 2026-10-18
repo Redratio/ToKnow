@@ -150,14 +150,22 @@ describe('exportBackup', () => {
     );
 
     const result = await exportBackup(db, dir, new Date('2026-10-18T22:30:00+08:00'));
-    const json = JSON.parse(readFileSync(result.jsonPath, 'utf8')) as {
+    const raw = readFileSync(result.jsonPath, 'utf8');
+    const json = JSON.parse(raw) as {
       profile: { id: string };
+      subjects: { code: string }[];
+      nodes: { title: string }[];
       tasks: { id: string }[];
       states: { nodeId: string }[];
       dailyLogs: { note: string | null }[];
     };
 
     expect(json.profile.id).toBe('profile-b');
+    // profile-a 的种子科目/节点不能泄漏到 profile-b 的导出里。
+    expect(json.subjects).toHaveLength(0);
+    expect(json.nodes).toHaveLength(0);
+    expect(raw).not.toContain('高等数学');
+    expect(raw).not.toContain('函数、极限与连续');
     expect(json.tasks.map((task) => task.id)).toEqual(['task-b']);
     expect(json.states).toHaveLength(1);
     expect(json.states[0].nodeId).toBe('node_0_0_0');

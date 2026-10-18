@@ -113,6 +113,46 @@ describe('generateDailyPlan', () => {
     db.close();
   });
 
+  it('rolls back mainline promotion when auto-plan insertion fails, then retries cleanly', () => {
+    const db = seededDb();
+    const manual = createManualTask(
+      db,
+      'profile-test',
+      { title: '待晋升的手动任务', date: today, plannedMin: 60 },
+      now
+    );
+    // 用真实 SQLite 失败注入：自动任务插入时中止，模拟 selectDailyPlan
+    // 之后、insertPlanTasks 期间抛错。
+    db.exec(
+      `CREATE TRIGGER fail_plan_insert
+       BEFORE INSERT ON task
+       WHEN NEW.source = 'plan'
+       BEGIN SELECT RAISE(ABORT, 'forced auto-plan failure'); END;`
+    );
+
+    expect(() =>
+      generateDailyPlan(db, 'profile-test', today, now + 1_000)
+    ).toThrow('forced auto-plan failure');
+
+    const promoted = db
+      .prepare('SELECT is_mainline FROM task WHERE id = ?')
+      .get(manual.id) as { is_mainline: number };
+    expect(promoted.is_mainline).toBe(0);
+    const planTasks = db
+      .prepare(
+        `SELECT COUNT(*) AS c FROM task
+         WHERE profile_id = ? AND scheduled_date = ? AND source = 'plan'`
+      )
+      .get('profile-test', today) as { c: number };
+    expect(planTasks.c).toBe(0);
+
+    db.exec('DROP TRIGGER fail_plan_insert');
+    const retried = generateDailyPlan(db, 'profile-test', today, now + 2_000);
+    expect(retried.mainline?.id).toBe(manual.id);
+    expect(retried.mainline?.isMainline).toBe(true);
+    db.close();
+  });
+
   it('returns the manual mainline with no supporting tasks when capacity is too small', () => {
     const db = seededDb();
     db.prepare('UPDATE study_profile SET daily_capacity_min = 100 WHERE id = ?').run(

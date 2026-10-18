@@ -91,12 +91,13 @@ export function getTaskById(
 export function markTaskMainline(
   db: Database.Database,
   taskId: string,
+  profileId: string,
   nowMs: number
 ): void {
   db.prepare(
     `UPDATE task SET is_mainline = 1, updated_at = ?
-     WHERE id = ? AND deleted_at IS NULL`
-  ).run(nowMs, taskId);
+     WHERE id = ? AND profile_id = ? AND deleted_at IS NULL`
+  ).run(nowMs, taskId, profileId);
 }
 
 export function markTaskDone(
