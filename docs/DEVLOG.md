@@ -10,6 +10,7 @@
 
 ### 当前状态
 
+- **产品名（暂定）：ToKnow**。两层含义：to know knowledge（对知识的了解）与 to know yourself（对自己的了解）；应用本身也在持续了解用户。产品内的“主线”仍指每日唯一主线机制。
 - 设计文档已完成并评审通过：`docs/superpowers/specs/2026-10-18-personal-study-system-design.md`
 - P0 实现计划已写完：`docs/superpowers/plans/2026-10-18-mainline-p0.md`（12 个任务）
 - 已建立开发日志约定：每个 Task 提交前在 `docs/DEVLOG.md` 追加记录；新会话先读本文件。
