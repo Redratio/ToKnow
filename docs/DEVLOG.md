@@ -192,3 +192,26 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 
 ### 下次从这里开始
 - Task 3：SQLite 连接、Schema、迁移、行映射与 `src/shared/privacy.ts` 访问策略。
+
+---
+
+## 2026-10-18 · Task 3：SQLite Schema、迁移、行映射与数据访问策略
+
+### 做了什么
+- 新建 `src/main/db/migrate.ts`：12 张 P0 表（`study_profile`、`subject`、`module`、`knowledge_node`、`node_prerequisite`、`user_node_state`、`task`、`task_node`、`evidence`、`daily_log`、`setting`、`sync_outbox`）、5 个索引，以及基于 `PRAGMA user_version` 的幂等迁移（事务包裹）。
+- 新建 `src/main/db/connection.ts`：`createDb`（打开即迁移、WAL、外键约束）与 `getDb` / `setDb` / `closeDb` 单例接口。
+- 新建 `src/main/db/rows.ts`：`ProfileRow` / `SubjectRow` / `ModuleRow` / `NodeRow` / `StateRow` / `TaskRow` / `DailyLogRow` 及对应 `mapX` 映射函数。
+- 新建 `src/shared/privacy.ts`：`DataDomain`、`DataPurpose`、`AccessLevel` 与纯函数 `accessLevel` / `canRead`，落地四层数据的访问矩阵（反思层不外流，行为层只给聚合，画像层只给确认项）。
+- 新增测试 `tests/db.test.ts`（3）、`tests/privacy.test.ts`（4）与 `tests/helpers/db.ts`；全程按 TDD：先写测试确认 RED，再实现转 GREEN。
+
+### 验证
+- `npm test -- tests/db.test.ts tests/privacy.test.ts`：7 passed（2 files）
+- `npm run typecheck`：通过，无错误
+- `npm test`：12 passed（3 files，含 Task 2 的 5 个日期用例），无回归
+
+### 决策 / 变化
+- `createDb` 自动执行迁移，测试用 `:memory:` 无需手动初始化。
+- 未改动 `src/shared/types.ts` 与 `src/shared/date.ts`；未提前创建 repositories / services / seed / IPC / renderer 代码。
+
+### 下次从这里开始
+- Task 4：四科目标树种子（4 科 / 16 模块 / 47 章节），基于本任务的连接、迁移与行映射。
