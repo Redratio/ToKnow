@@ -599,3 +599,28 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 
 ### 下次从这里开始
 - Task 13：集成测试、README 与最终验收。人工跑 `npm run dev` 时重点看：月初空格与周一对齐、150% 缩放下的 7 列可读性、拖拽期间失败提示、以及完成日历任务后今日页完成数是否同步。
+
+---
+
+## 2026-10-18 · P0 完成
+
+### 做了什么
+- 完成 P0 全部 13 个任务：脚手架、SQLite、目标树、onboarding、规则规划、任务完成、打卡、知识树、备份、IPC、今日/日历/知识树三个主界面。
+- 新增端到端测试 `tests/integration.test.ts`：直接驱动 `createHandlers({ db, dbPath, backupDir, version })`，从空库 onboarding 一路验证今日计划、完成任务、打卡回读、知识树掌握度、手动任务新建/改期、月历计数与备份导出，并断言 JSON 中 `dailyLog.note` 为 `null`。不导入 Electron，不启动窗口。
+- 新增 `README.md`：范围、环境、开发、测试、数据位置与文档入口。
+- 复核 P0 计划勾选项：代码与自动化验证覆盖的步骤已勾选；依赖人工运行 Electron 的步骤保持未勾选，并在计划头部列为待人工验收。
+
+### 验证
+- `npm test`：50 passed（13 files）
+- `npm run typecheck`：无错误
+- `npm run build`：成功（main / preload / renderer 三段产物均生成）
+- 手动验收：未在本轮执行。`npm run dev` 的窗口内检查（首次引导、主线视觉层级、150% 缩放、日历双击/拖拽、设置页导出、关闭重开数据仍在）仍需人工按计划 Task 13 Step 4 清单复核。
+
+### 决策 / 变化
+- 集成测试按简报逐字实现，并保留 Task 9 的备份脱敏断言：JSON 不含日记原文，`.db` 副本仍保留。
+- 未新增依赖、未改 schema、未改业务代码；`planService.ts` 仍未导入 `dailyLogRepo`，代码中无网络请求与密钥。
+- 计划文件只改勾选状态并追加一行待人工验收说明，未改写原有步骤与代码块。
+
+### 下次从这里开始
+- P1：使用记录采集与时间线；先单独写 P1 设计/计划，不要直接改 P0 schema。
+- 在开始 P1 前，人工完成 P0 的 `npm run dev` 验收清单。
