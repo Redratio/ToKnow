@@ -1,9 +1,9 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import { closeDb, createDb, setDb } from './db/connection';
 import { createHandlers, registerIpc } from './ipc';
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1180,
     height: 820,
@@ -24,30 +24,51 @@ function createWindow(): void {
   } else {
     void win.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
+
+  return win;
 }
 
-app.whenReady().then(() => {
-  const userData = app.getPath('userData');
-  const dbPath = path.join(userData, 'toknow.db');
-  const backupDir = path.join(userData, 'backups');
-  const db = createDb(dbPath);
-  setDb(db);
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
-  registerIpc(
-    ipcMain,
-    createHandlers({ db, dbPath, backupDir, version: app.getVersion() })
-  );
-
-  createWindow();
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    const win = BrowserWindow.getAllWindows()[0];
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
   });
-});
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
-});
+  app.whenReady().then(() => {
+    try {
+      const userData = app.getPath('userData');
+      const dbPath = path.join(userData, 'toknow.db');
+      const backupDir = path.join(userData, 'backups');
+      const db = createDb(dbPath);
+      setDb(db);
 
-app.on('before-quit', () => {
-  closeDb();
-});
+      registerIpc(
+        ipcMain,
+        createHandlers({ db, dbPath, backupDir, version: app.getVersion() })
+      );
+
+      createWindow();
+      app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) createWindow();
+      });
+    } catch (error) {
+      dialog.showErrorBox('ToKnow 启动失败', String(error));
+      app.quit();
+    }
+  });
+
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit();
+  });
+
+  app.on('before-quit', () => {
+    closeDb();
+  });
+}

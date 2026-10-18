@@ -491,3 +491,23 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 
 ### 下次从这里开始
 - Task 11：渲染层接入 `window.api`，用类型化 IPC 完成今日页/树页的数据加载与状态刷新。
+
+---
+
+## 2026-10-18 · Task 10 修复轮 1
+
+### 做了什么
+- `src/main/index.ts` 的 `app.whenReady().then(...)` 回调改为 `try/catch`：数据库路径解析、`createDb`（含 `migrate`）、`setDb`、`registerIpc` 或窗口创建任一步抛错时，调用 `dialog.showErrorBox('ToKnow 启动失败', String(error))` 并 `app.quit()`，避免无窗口、无提示的挂起进程。`dialog` 从 `electron` 导入。
+- 新增单实例锁：在 `whenReady` 之前调用 `app.requestSingleInstanceLock()`；未获得锁时 `app.quit()` 并跳过其余初始化，避免第二次启动并发打开同一 WAL 数据库、并行跑迁移。获得锁时注册 `second-instance`，将已有窗口从最小化恢复并聚焦。
+- `createWindow()` 返回 `BrowserWindow`，供 `second-instance` 聚焦使用；窗口配置与加载逻辑不变。
+- `window-all-closed` 与 `before-quit` 移入获锁分支，未获锁的进程不再注册这些生命周期副作用。
+
+### 验证
+- `npm run typecheck`：通过，无错误
+- `npm test`：45 passed（11 files），无回归
+- 启动失败与单实例属于 Electron 运行时行为，按简报不新增运行时测试；两条路径均只依赖 Electron 官方 API，无新增依赖。
+
+### 决策 / 变化
+- 单实例锁在模块顶层获取，早于 `whenReady`，符合 Electron 推荐顺序；`second-instance` 只处理“恢复 + 聚焦”，不在第二实例中重复创建数据库连接。
+- 启动错误用 `String(error)` 展示，保留错误消息但不会让进程静默退出；`before-quit` 仍会关闭已创建的连接（未创建时 `closeDb()` 对 null 安全）。
+- 未改 IPC 契约、渲染层或共享类型。
