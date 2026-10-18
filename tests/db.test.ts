@@ -28,6 +28,29 @@ describe('database migration', () => {
     db.close();
   });
 
+  it('gives every syncable entity its audit columns', () => {
+    const db = makeTestDb();
+    const required = ['id', 'created_at', 'updated_at', 'deleted_at', 'device_id'];
+    const tables = [
+      'study_profile',
+      'subject',
+      'module',
+      'knowledge_node',
+      'task',
+      'daily_log'
+    ];
+    for (const table of tables) {
+      const columns = db
+        .prepare(`PRAGMA table_info(${table})`)
+        .all() as { name: string }[];
+      const names = columns.map((column) => column.name);
+      for (const column of required) {
+        expect(names, `${table}.${column}`).toContain(column);
+      }
+    }
+    db.close();
+  });
+
   it('is idempotent', () => {
     const db = makeTestDb();
     expect(() => migrate(db)).not.toThrow();

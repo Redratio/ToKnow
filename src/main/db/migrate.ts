@@ -130,6 +130,8 @@ CREATE TABLE IF NOT EXISTS daily_log (
   checkin_at INTEGER NOT NULL,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  device_id TEXT NOT NULL,
   UNIQUE(profile_id, date)
 );
 

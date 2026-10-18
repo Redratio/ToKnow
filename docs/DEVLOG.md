@@ -208,6 +208,7 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 - `npm test -- tests/db.test.ts tests/privacy.test.ts`：7 passed（2 files）
 - `npm run typecheck`：通过，无错误
 - `npm test`：12 passed（3 files，含 Task 2 的 5 个日期用例），无回归
+- 修复轮 1：`daily_log` 补上 `deleted_at` / `device_id` 审计列（同步重放与删除对账所需），新增 `gives every syncable entity its audit columns` 测试；修复后目标测试 8 passed（db 4 + privacy 4），全量 `npm test` 13 passed
 
 ### 决策 / 变化
 - `createDb` 自动执行迁移，测试用 `:memory:` 无需手动初始化。
