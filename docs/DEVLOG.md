@@ -511,3 +511,34 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 - 单实例锁在模块顶层获取，早于 `whenReady`，符合 Electron 推荐顺序；`second-instance` 只处理“恢复 + 聚焦”，不在第二实例中重复创建数据库连接。
 - 启动错误用 `String(error)` 展示，保留错误消息但不会让进程静默退出；`before-quit` 仍会关闭已创建的连接（未创建时 `closeDb()` 对 null 安全）。
 - 未改 IPC 契约、渲染层或共享类型。
+
+---
+
+## 2026-10-18 · Task 11：渲染层界面
+
+### 做了什么
+- 新增 `src/renderer/src/api.ts`，以单一 `api` 导出 `window.api`，页面不直接散落全局访问。
+- 替换 `src/renderer/src/main.tsx`：React 19 `createRoot` + `HashRouter`（适配 Electron `file://` 加载），并引入全局 `styles.css`。
+- 替换 `src/renderer/src/App.tsx`：启动时调用 `bootstrap()`；无 profile 时只渲染 onboarding，onboarding 成功后把返回的 `Profile` 写回 boot 状态并进入主界面；主界面路由固定为 `/`（今日）、`/tree`（知识树）、`/settings`（设置），未知路径重定向回今日。
+- 新增 `components/Layout.tsx`：顶栏显示品牌、学习日期与固定导航「今日 / 知识树 / ⚙」，不新增任何顶级入口。
+- 新增 `components/MasteryBar.tsx` 与 `components/TreeNode.tsx`：掌握度条按 0–5 映射为填充宽度，树节点递归渲染标题、权重与掌握度。
+- 新增 `pages/OnboardingPage.tsx`：称呼、考试日期、每日可用时间、四科 0–5 自评；把 `INVALID_ONBOARDING:<code,...>` 归一化为中文提示，保存中禁用按钮并显示「正在建立目标树…」。
+- 新增 `pages/TodayPage.tsx`：首屏先呈现唯一主线卡（主线标签、计划分钟、实际分钟与完成质量输入、「标记完成」），其下是配套任务与今日打卡（睡眠 / 精力 / 心情 / 专注 / 一句话记录）；完成任务或打卡后重新调用 `getToday()`，计数与卡片状态随之刷新。
+- 新增 `pages/TreePage.tsx`：四科整体掌握度使用其全部节点均值；模块显示分值，节点递归展示层级掌握度；无数据或读取失败都有明确文案。
+- 新增 `pages/SettingsPage.tsx`：展示数据库路径、备份目录与版本，并调用 `exportBackup()`，成功时给出导出的 `.json` 路径。
+- 新增 `styles.css`：暖纸色背景、单一墨绿 accent、衬线标题；无渐变装饰、无红绿黄状态色、无组件库；窄屏下打卡网格降为两列，常规窗口在 100–150% 缩放下仍保持单列可读。
+
+### 验证
+- `npm run typecheck`：通过，无错误
+- `npm run build`：通过（main / preload / renderer 三段产物均生成，renderer 31 modules）
+- `npm test`：45 passed（11 files），无回归
+- 手动验收（`npm run dev`）未在本轮执行：当前环境无 DOM 测试与 GUI 自动化，需人工按简报 Step 12 走一遍 onboarding → 今日 → 完成 → 打卡 → 知识树 → 导出备份。
+
+### 决策 / 变化
+- 严格按简报实现，未新增依赖，未改主进程、preload 或共享类型。
+- 与产品约束的偏差：主线性卡片旁的「换一个 / 锁定 / 标记卡住」在简报 Step 8 中未出现，且 `AppApi` 只暴露 `completeTask`，没有换任务 / 锁定 / 卡住的 IPC。为不引入无行为的占位按钮，本轮只交付「完成」；这三项需在后续任务中先扩展共享接口与主进程服务后再接入。已在任务报告中标注。
+- 今日页与打卡按钮的提交失败沿用简报代码，仅 `finally` 复位 busy，未额外捕获错误；正常路径下 IPC 错误会表现为未处理的 Promise rejection，人工验收时应关注异常场景。
+- onboarding 始终有默认考试日期 `2026-12-19`，与 P0 预估初试日期一致；真实日期仍以用户输入为准，不写死在主进程。
+
+### 下次从这里开始
+- Task 12：日历页（月视图 / 日视图），复用既有 `CalendarMonthView` / `CalendarDayView` 类型与主进程日历服务；完成后人工跑一遍全流程并检查备份文件。
