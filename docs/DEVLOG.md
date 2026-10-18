@@ -395,7 +395,7 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 - `npm run typecheck`：通过，无错误
 
 ### 决策 / 变化
-- 证据分制边界统一：`applyEvidence` 接收界面使用的 0–5 分 `performance`，原样写入 `evidence.performance`，仅在调用 `updateMastery` 前除以 5 归一化。任务简报原文在 `completeTask` 里先除以 5 再传入，会导致 `evidence.performance` 变成 0.8，与简报测试期望的 4 冲突；以测试与 `evidence` 的 0–5 语义为准，已在报告中记录偏离。
+- 证据分制边界统一：`applyEvidence` 接收界面使用的 0–5 分 `performance`，除以 5 归一化一次后，`evidence.performance` 与 `evidence.expected` 都以 0–1 存储、可直接相减；`updateMastery` 消费同一个归一化值。（最初实现按 0–5 原样写库，与 `expected = current / 5` 混用两种量纲，Task 8 修复轮 1 已修正。）
 - `targetMastery` 仍只作达标阈值，`applyEvidence` 不把掌握度夹到目标值，保留超额掌握信息。
 - 隐私边界保持：`planService.ts` 不导入 `dailyLogRepo`，不读取日记 / 反思文本；`todayService.ts` 是唯一读取 `daily_log` 的服务。
 - 未新增依赖、未改 schema、未提前实现 Task 9 的打卡写入。
