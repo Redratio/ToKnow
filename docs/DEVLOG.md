@@ -284,3 +284,29 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 ### 决策 / 变化
 - 默认值仍取真实学习日，生产调用方无需改动；测试显式注入日期以获得确定性。
 - 未新增依赖、未改 schema，未触碰其他任务文件。
+
+---
+
+## 2026-10-18 · Task 6：规划纯函数
+
+### 做了什么
+- 新建 `src/shared/planner.ts`：纯规划模块，不读数据库、文件系统或时钟，时间一律由 `nowMs` / 日期字符串传入。
+  - `urgency(daysLeft)`：距离考试 90 天以上为 1，越接近考试越大，考试当天为 2。
+  - `forgetting(lastStudiedAt, nowMs)`：从未学习返回 1，按距上次学习天数线性上升，14 天封顶为 2。
+  - `priority(node, daysLeft, nowMs)`：`考试权重 × (弱点 + 目标差距) × 紧迫度 × 遗忘度`，弱点与目标差距均按 5 分制归一化。
+  - `selectDailyPlan(input)`：先过滤已掌握节点（`mastery >= targetMastery`），按优先级降序排序，取前 `maxTasks`（默认 3）个，首个为主线、其余为辅助；`plannedMin` 按剩余任务均分每日容量，限制在 10–60 分钟；无可学节点返回 `null`。
+- 新增 `tests/planner.test.ts`（7 个用例，纯函数，无数据库、无真实时钟）。
+
+### 验证
+- `npm test -- tests/planner.test.ts`：RED（`Cannot find module '../src/shared/planner'`）→ GREEN，7 passed（1 file）
+- `npm test`：26 passed（6 files），无回归
+- `npm run typecheck`：通过，无错误
+- 提交仅包含 `src/shared/planner.ts`、`tests/planner.test.ts` 与本 DEVLOG 条目。
+
+### 决策 / 变化
+- 按任务简报逐字实现接口与公式，无偏离。
+- 规划逻辑保持纯净：不依赖 `getStudyDate`，`today` 与 `nowMs` 由调用方注入，便于测试与后续服务层复用。
+- `daysBetween` 已对负值取 0，考试日期已过时 `urgency` 取上限 2。
+
+### 下次从这里开始
+- 后续任务：把 `selectDailyPlan` 接入服务层，落库为 `Task`（主线 / 辅助）并暴露 IPC。
