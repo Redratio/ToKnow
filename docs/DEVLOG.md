@@ -420,3 +420,26 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 ### 决策 / 变化
 - 证据表作为耐久审计与校准来源，内部一致性优先于「原样存原始分」；原始 0–5 语义由调用方契约承担，已在 JSDoc 与插入注释中写明。
 - 软删除过滤与现有 repository 风格保持一致；未新增依赖、未改 schema。
+
+---
+
+## 2026-10-18 · Task 9：每日打卡与本地备份
+
+### 做了什么
+- `src/main/repositories/dailyLogRepo.ts`：保留 Task 8 的 `getDailyLog`，新增 `upsertDailyLog(db, profileId, input, nowMs)`，按 `(profile_id, date)` 唯一键 upsert，校验睡眠 0–24、精力/心情/专注自评 1–5（失败抛 `INVALID_DAILY_LOG`），写入 `device_id = 'local'`，更新时不改 `id` / `created_at` / `device_id`。另新增 `listDailyLogsBetween(db, profileId, from, to)`（含端点、按日期升序、过滤软删除），供 Task 12 日历使用。
+- `src/main/services/backupService.ts`：`exportBackup(db, destDir, now?)` 用 better-sqlite3 在线备份写出完整 SQLite 文件，并写 JSON 导出（profile、subjects、nodes、states、tasks、dailyLogs）。
+- **隐私边界**：JSON 导出中的 `dailyLogs` 保留数值字段，`note` 一律置 `null`，反思层原文只存在于 SQLite 文件副本；`daily_log` 读取同时按 `profile_id` 与 `deleted_at IS NULL` 过滤。
+- 新增 `tests/dailyLog.test.ts`（2 个用例）与 `tests/backup.test.ts`（1 个用例），按简报逐字实现。
+
+### 验证
+- `npm test -- tests/dailyLog.test.ts tests/backup.test.ts`：RED（`upsertDailyLog` 不存在、`backupService` 模块缺失）→ GREEN，3 passed（2 files）
+- `npm test`：41 passed（10 files），无回归（Task 8 后基线 38 passed / 8 files）
+- `npm run typecheck`：通过，无错误
+
+### 决策 / 变化
+- 与简报的偏离：JSON 导出读取 profile 改用既有 `getActiveProfile`（自动过滤 `deleted_at` 与非激活行），`daily_log` 查询增加 `profile_id` 与 `deleted_at IS NULL` 过滤，以遵守「所有读都过滤软删除」的全局约束；简报原 SQL 为全表 `SELECT * FROM daily_log`。
+- `daily_log.note` 不进入默认导出；只有用户主动保管的 `.db` 副本含原文，符合反思层「只给用户自己看」的定位。
+- 未新增依赖、未改 schema、未改共享类型（`BackupResult`、`DailyLogInput` 等已存在）。
+
+### 下次从这里开始
+- Task 10：类型化 IPC 与主进程装配，把打卡、备份与既有服务暴露给渲染层。
