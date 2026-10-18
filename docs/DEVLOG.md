@@ -216,3 +216,27 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 
 ### 下次从这里开始
 - Task 4：四科目标树种子（4 科 / 16 模块 / 47 章节），基于本任务的连接、迁移与行映射。
+
+---
+
+## 2026-10-18 · Task 4：目标树种子
+
+### 做了什么
+- 新建 `src/main/seed/targetTree.ts`：`SeedSubject` / `SeedModule` / `SeedChapter` 类型、`TARGET_TREE` 常量、`seedTargetTree(db, profileId)` 与 `countSeeded(db, profileId)`。
+- 种子数据为 4 科 / 16 模块 / 47 章节：数学一（3 模块 / 19 章）、英语一（5 / 7）、政治（5 / 5）、825 电气科学基础（3 / 16；电路 7 章、电磁场 6 章、电机 3 章）。
+- 种子事务写入 4 张表：`subject` → `module` → `knowledge_node`（`kind = 'chapter'`）→ `user_node_state`（初始全 0，`updated_by = 'self'`）。
+- 幂等策略：若该 profile 已有任意 subject 记录，则直接返回。
+- 新增 `tests/seed.test.ts`（3 个用例：数量、幂等、每个节点都有初始状态）。
+
+### 验证
+- `npm test -- tests/seed.test.ts`：RED（找不到 `../src/main/seed/targetTree`）→ GREEN，3 passed（1 file）
+- `npm test`：16 passed（4 files），无回归
+- `npm run typecheck`：通过，无错误
+
+### 决策 / 变化
+- 节点 ID 采用确定性格式 `node_<subjectIndex>_<moduleIndex>_<chapterIndex>`，便于后续任务稳定引用。
+- 种子只创建章节级节点（47 个），不预建 `section` / `point` 层级，避免凭空发明内容。
+- 未创建 repositories / services / IPC / renderer 等后续任务文件。
+
+### 下次从这里开始
+- Task 5：Onboarding 校验与服务，读取本任务的目标树并为用户建立初始状态。
