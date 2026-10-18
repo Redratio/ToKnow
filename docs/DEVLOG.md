@@ -310,3 +310,25 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 
 ### 下次从这里开始
 - 后续任务：把 `selectDailyPlan` 接入服务层，落库为 `Task`（主线 / 辅助）并暴露 IPC。
+
+---
+
+## 2026-10-18 · Task 7：掌握度更新
+
+### 做了什么
+- 新建 `src/shared/mastery.ts`：纯函数 `updateMastery(current, performance, expected, weight)`，按 `current + weight × (performance - expected)` 更新，限制在 0–5，并四舍五入到两位小数。
+- 新建 `tests/mastery.test.ts`：3 个用例，覆盖向表现值移动且不越界、两位小数舍入、表现等于预期时保持稳定。
+- 任务完成只作为弱证据：单次更新幅度由 `weight` 控制，不会一步跳到目标掌握度。
+
+### 验证
+- `npm test -- tests/mastery.test.ts`：RED（`Cannot find module '../src/shared/mastery'`）→ GREEN，3 passed（1 file）
+- `npm test`：29 passed（7 files），无回归
+- `npm run typecheck`：通过，无错误
+
+### 决策 / 变化
+- 按任务简报逐字实现，无接口或公式偏离。
+- 模块保持纯净：不读数据库、文件系统或时钟，所有输入由调用方传入。
+- 未改动其他任务文件，未新增依赖。
+
+### 下次从这里开始
+- 后续任务：在任务完成服务中调用 `updateMastery`，把完成记录写入 `evidence` 并更新 `user_node_state`。
