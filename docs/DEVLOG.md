@@ -570,3 +570,32 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 
 ### 下次从这里开始
 - 最终复审：确认 deferred 的表单覆盖问题是否进入后续任务；人工跑 `npm run dev` 复核错误态、空态与主线性卡片的 150% 缩放显示。
+
+---
+
+## 2026-10-18 · Task 12：日历服务、月历界面与手动任务
+
+### 做了什么
+- **仓库层**：`taskRepo.ts` 新增 `listTasksForMonth`（按日期区间读取、过滤软删除，按日期 / 主线 / 优先级排序）与 `updateTaskDate`（改期并更新 `updated_at`）。`dailyLogRepo.ts` 在 Task 9 已有 `listDailyLogsBetween`，本任务直接复用，未重复实现。
+- **服务层**：新增 `calendarService.ts`，提供 `monthBounds`、`getMonthView`、`getDayView`、`createManualTask`、`rescheduleTask`。月视图按天聚合 `taskCount` / `doneCount` / `plannedMin` / `hasCheckIn`，并返回整月任务；手动任务固定 `source = 'manual'`、`isMainline = false`、`status = 'todo'`；校验非法标题、分钟、日期与跨 profile 的任务改期。
+- **IPC**：`shared/ipc.ts` 新增四个通道 `calendar:month`、`calendar:day`、`task:create`、`task:move` 及对应 `AppApi` 方法；`main/ipc.ts` 在既有 `createHandlers` 对象与 `registerIpc` 末尾接入；`preload/index.ts` 暴露同名方法。`env.d.ts` 因 `AppApi` 自动扩展无需改动。
+- **渲染层**：新增 `pages/CalendarPage.tsx`：真实 7 列月历网格（周一开头、月初空格偏移）、今天 / 选中态、任务计数与打卡圆点、负荷条；右侧日详情展示任务、打卡状态、新建表单；双击日期把焦点移到新任务输入框；任务可拖到任意日期改期；勾选框完成并按计划分钟记录弱证据。`App.tsx` 增加 `/calendar` 路由；`Layout.tsx` 在「今日」与「知识树」之间加入「日历」，并在日历路由下使用 `content-wide`。
+- **样式**：`styles.css` 追加月历网格、日详情、任务卡与窄屏单列布局（`max-width: 900px`），沿用暖纸色与单一墨绿 accent。
+- **错误与忙碌态**：日历的创建 / 完成 / 改期均包裹 try/catch，失败时显示「添加失败 / 完成失败 / 改期失败：<领域错误码>」；创建按钮在途显示「添加中…」并禁用，勾选框在途禁用，拖拽在改期请求在途时禁用。改期失败不会乐观移动任务，因此任务停在原日期并同时显示失败原因，不会静默回弹。另用请求序号保证快速切月 / 切日时旧响应不会覆盖新视图。
+
+### 验证
+- `npm test -- tests/calendar.test.ts`：RED（找不到 `calendarService`）→ GREEN，4 passed（1 file；简报写 3 passed，实际测试文件含 4 个 it）
+- `npm test`：49 passed（12 files），无回归（Task 11 后基线 45 passed / 11 files）
+- `npm run typecheck`：通过，无错误
+- `npm run build`：通过（main / preload / renderer 三段产物均生成，renderer 33 modules）
+- 手动验收未在本轮执行：渲染层无 DOM 测试与 GUI 自动化，需人工 `npm run dev` 按简报 Step 9 复核网格偏移、双击聚焦、拖拽改期、勾选计数与今日页同步。
+
+### 决策 / 变化
+- `listDailyLogsBetween` 已在 Task 9 提前实现并带端点过滤，本任务复用而不重写；`dailyLogRepo.ts` 本任务无改动。
+- 简报的 `CalendarPage` 示例没有忙碌态和错误文案，本轮按 Task 11 的约定补齐；同时把「读取失败」与「操作失败」分开，避免刷新错误遮蔽操作错误。
+- 双击新建沿用简报行为：只把焦点移到输入框，不弹窗；提交仍使用右侧当前选中日期。
+- 已完成任务仍可拖拽改期（与简报一致），未额外限制；若后续认为历史完成记录不应移动，可在服务层加状态校验。
+- 未新增依赖、未改 schema、未改领域类型；`planService.ts` 仍未导入 `dailyLogRepo`，日历服务是独立读取路径。
+
+### 下次从这里开始
+- Task 13：集成测试、README 与最终验收。人工跑 `npm run dev` 时重点看：月初空格与周一对齐、150% 缩放下的 7 列可读性、拖拽期间失败提示、以及完成日历任务后今日页完成数是否同步。

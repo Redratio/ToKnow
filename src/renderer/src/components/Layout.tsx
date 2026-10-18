@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 
 export default function Layout({
   today,
@@ -8,6 +8,8 @@ export default function Layout({
   today: string;
   children: ReactNode;
 }) {
+  const { pathname } = useLocation();
+
   return (
     <div className="shell">
       <header className="topbar">
@@ -19,13 +21,16 @@ export default function Layout({
           <NavLink to="/" end>
             今日
           </NavLink>
+          <NavLink to="/calendar">日历</NavLink>
           <NavLink to="/tree">知识树</NavLink>
           <NavLink to="/settings" className="gear" aria-label="设置" title="设置">
             ⚙
           </NavLink>
         </nav>
       </header>
-      <main className="content">{children}</main>
+      <main className={`content${pathname === '/calendar' ? ' content-wide' : ''}`}>
+        {children}
+      </main>
     </div>
   );
 }

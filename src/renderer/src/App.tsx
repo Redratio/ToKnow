@@ -4,6 +4,7 @@ import type { Bootstrap } from '../../shared/ipc';
 import type { Profile } from '../../shared/types';
 import { api } from './api';
 import Layout from './components/Layout';
+import CalendarPage from './pages/CalendarPage';
 import OnboardingPage from './pages/OnboardingPage';
 import SettingsPage from './pages/SettingsPage';
 import TodayPage from './pages/TodayPage';
@@ -38,6 +39,7 @@ export default function App() {
     <Layout today={boot.today}>
       <Routes>
         <Route path="/" element={<TodayPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/tree" element={<TreePage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

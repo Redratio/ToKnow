@@ -1,11 +1,16 @@
 import type {
   BackupResult,
+  CalendarDayView,
+  CalendarMonthView,
   CompleteTaskInput,
   CompleteTaskResult,
+  CreateTaskInput,
   DailyLog,
   DailyLogInput,
+  MoveTaskInput,
   OnboardingInput,
   Profile,
+  Task,
   TodayView,
   TreeSubject
 } from './types';
@@ -18,7 +23,11 @@ export const IPC = {
   checkIn: 'log:checkin',
   tree: 'tree:get',
   exportBackup: 'backup:export',
-  settings: 'app:settings'
+  settings: 'app:settings',
+  calendarMonth: 'calendar:month',
+  calendarDay: 'calendar:day',
+  createTask: 'task:create',
+  moveTask: 'task:move'
 } as const;
 
 export interface Bootstrap {
@@ -41,4 +50,8 @@ export interface AppApi {
   getTree(): Promise<TreeSubject[]>;
   exportBackup(): Promise<BackupResult>;
   getSettings(): Promise<AppSettings>;
+  getCalendarMonth(year: number, month: number): Promise<CalendarMonthView>;
+  getCalendarDay(date: string): Promise<CalendarDayView>;
+  createTask(input: CreateTaskInput): Promise<Task>;
+  moveTask(input: MoveTaskInput): Promise<Task>;
 }

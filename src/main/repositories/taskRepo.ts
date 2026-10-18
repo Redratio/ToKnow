@@ -82,3 +82,30 @@ export function listNodeIdsForTask(
     .all(taskId) as { node_id: string }[];
   return rows.map((r) => r.node_id);
 }
+
+export function listTasksForMonth(
+  db: Database.Database,
+  profileId: string,
+  startDate: string,
+  endDate: string
+): Task[] {
+  const rows = db
+    .prepare(
+      `SELECT * FROM task
+       WHERE profile_id = ? AND scheduled_date BETWEEN ? AND ? AND deleted_at IS NULL
+       ORDER BY scheduled_date, is_mainline DESC, priority_score DESC`
+    )
+    .all(profileId, startDate, endDate) as TaskRow[];
+  return rows.map(mapTask);
+}
+
+export function updateTaskDate(
+  db: Database.Database,
+  taskId: string,
+  date: string,
+  nowMs: number
+): void {
+  db.prepare(
+    `UPDATE task SET scheduled_date = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`
+  ).run(date, nowMs, taskId);
+}
