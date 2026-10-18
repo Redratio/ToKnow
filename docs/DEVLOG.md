@@ -266,3 +266,21 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 
 ### 下次从这里开始
 - Task 6：规划纯函数（urgency / forgetting / priority / selectDailyPlan）。
+
+---
+
+## 2026-10-18 · Task 5 修复轮 1
+
+### 做了什么
+- `submitOnboarding` 新增可选参数 `today = getStudyDate(new Date())`，并将其传入 `validateOnboarding(input, today)`；函数其余逻辑不变。
+- `tests/onboarding.test.ts` 的集成用例改为 `submitOnboarding(db, validInput, '2026-10-18')`，让校验与固定的 `examDate: '2026-12-19'` 共享同一基准日，不再依赖真实时钟，避免 2026-12-20 起永久触发 `exam_date_past`。
+
+### 验证
+- `npm test -- tests/onboarding.test.ts`：3 passed（1 file）
+- `npm test`：19 passed（5 files），无回归
+- `npm run typecheck`：通过，无错误
+- 提交仅包含 `src/main/services/onboardingService.ts`、`tests/onboarding.test.ts` 与本 DEVLOG 条目。
+
+### 决策 / 变化
+- 默认值仍取真实学习日，生产调用方无需改动；测试显式注入日期以获得确定性。
+- 未新增依赖、未改 schema，未触碰其他任务文件。

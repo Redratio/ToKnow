@@ -42,7 +42,7 @@ describe('validateOnboarding', () => {
 describe('submitOnboarding', () => {
   it('creates profile, seeds tree and applies subject ratings', () => {
     const db = makeTestDb();
-    const profile = submitOnboarding(db, validInput);
+    const profile = submitOnboarding(db, validInput, '2026-10-18');
 
     expect(profile.examDate).toBe('2026-12-19');
     expect(getActiveProfile(db)?.id).toBe(profile.id);

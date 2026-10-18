@@ -30,9 +30,10 @@ export function validateOnboarding(
 
 export function submitOnboarding(
   db: Database.Database,
-  input: OnboardingInput
+  input: OnboardingInput,
+  today = getStudyDate(new Date())
 ): Profile {
-  const errors = validateOnboarding(input);
+  const errors = validateOnboarding(input, today);
   if (errors.length > 0) {
     throw new Error(`INVALID_ONBOARDING:${errors.join(',')}`);
   }
