@@ -14,7 +14,8 @@
 - P0 实现计划已写完：`docs/superpowers/plans/2026-10-18-mainline-p0.md`（12 个任务）
 - 已建立开发日志约定：每个 Task 提交前在 `docs/DEVLOG.md` 追加记录；新会话先读本文件。
 - **代码尚未开始写**。第一步是升级 Node.js，然后按计划执行 Task 1。
-- 本机环境：Windows 11，Node v20.16.0（不满足要求），npm 10.8.1，git 2.45.2。
+- 本机环境：Windows 11，Node 已从 v20.16.0 升级到 **v24.20.0**，npm 11.19.0，git 2.45.2。
+- P0 执行已开始：分支 `p0`，基线提交 `20bb599`（仅 docs）；按 `superpowers:subagent-driven-development` 逐任务推进。
 
 ### 项目目标（一句话）
 
