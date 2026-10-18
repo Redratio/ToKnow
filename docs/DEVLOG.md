@@ -240,3 +240,29 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 
 ### 下次从这里开始
 - Task 5：Onboarding 校验与服务，读取本任务的目标树并为用户建立初始状态。
+
+---
+
+## 2026-10-18 · Task 5：Onboarding 校验与服务
+
+### 做了什么
+- 新建 `src/main/repositories/profileRepo.ts`：`insertProfile(db, profile, deviceId = 'local')` 写入 `study_profile`；`getActiveProfile(db)` 读取 `active = 1 AND deleted_at IS NULL` 的最近一条 profile，并用 `mapProfile` 映射为领域类型。
+- 新建 `src/main/services/onboardingService.ts`：
+  - `validateOnboarding(input, today = getStudyDate(new Date()))` 校验姓名非空、考试日期格式与未过期、每日容量 60–900 分钟、自评 0–5。
+  - `submitOnboarding(db, input)` 先校验（失败抛 `INVALID_ONBOARDING:<errors>`），再在单个事务内插入 profile、调用 `seedTargetTree` 建四科目标树、按学科 code 把自评同时写入 `user_node_state.self_rating` 与 `mastery`（`confidence = 0.5`、`updated_by = 'self'`）。
+- 新增 `tests/onboarding.test.ts`：校验有效/无效输入，以及创建 profile、种子树、应用数学自评的集成用例。
+
+### 验证
+- `npm test -- tests/onboarding.test.ts`：RED（找不到 `profileRepo` / `onboardingService`）→ GREEN，3 passed（1 file）
+- `npm test`：19 passed（5 files），无回归
+- `npm run typecheck`：通过，无错误
+- 提交仅包含 `src/main/repositories/profileRepo.ts`、`src/main/services/onboardingService.ts`、`tests/onboarding.test.ts` 与本 DEVLOG 条目。
+
+### 决策 / 变化
+- 按任务简报逐字实现，无接口偏离；`insertProfile` 的 `deviceId` 默认 `local`，暂不接入设备标识。
+- 自评同时作为初始 `mastery`，符合 P0「用户自评即初始掌握度」的简化；后续由证据更新函数修正。
+- 事务内嵌套 `seedTargetTree` 自带的事务，better-sqlite3 以 savepoint 处理，测试已验证可行。
+- 校验未新增未知学科 code 的检查（简报未要求），保持与接口一致。
+
+### 下次从这里开始
+- Task 6：规划纯函数（urgency / forgetting / priority / selectDailyPlan）。
