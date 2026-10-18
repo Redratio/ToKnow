@@ -2,6 +2,25 @@ import { useEffect, useState } from 'react';
 import type { Task, TodayView } from '../../../shared/types';
 import { api } from '../api';
 
+function reasonOf(error: unknown): string {
+  const raw = String(error);
+  const marker = raw.lastIndexOf('Error: ');
+  return marker >= 0 ? raw.slice(marker + 7) : raw;
+}
+
+function parseSleep(raw: string): number | null | undefined {
+  if (raw.trim() === '') return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < 0 || value > 24) return undefined;
+  return value;
+}
+
+function clampNumber(raw: string, min: number, max: number): number {
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
+
 function TaskCard({
   task,
   mainline,
@@ -14,16 +33,20 @@ function TaskCard({
   const [minutes, setMinutes] = useState(task.plannedMin);
   const [performance, setPerformance] = useState(3);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function complete(): Promise<void> {
     setBusy(true);
+    setError(null);
     try {
       await api.completeTask({
         taskId: task.id,
-        actualMin: minutes,
-        performance
+        actualMin: Math.min(600, Math.max(0, minutes)),
+        performance: Math.min(5, Math.max(1, performance))
       });
       onDone();
+    } catch (e) {
+      setError(`完成失败：${reasonOf(e)}`);
     } finally {
       setBusy(false);
     }
@@ -41,31 +64,36 @@ function TaskCard({
       {task.status === 'done' ? (
         <p className="done-note">已完成 · 实际 {task.actualMin} 分钟</p>
       ) : (
-        <div className="task-actions">
-          <label>
-            实际分钟
-            <input
-              type="number"
-              min={0}
-              max={600}
-              value={minutes}
-              onChange={(e) => setMinutes(Number(e.target.value))}
-            />
-          </label>
-          <label>
-            完成质量（1–5）
-            <input
-              type="number"
-              min={1}
-              max={5}
-              value={performance}
-              onChange={(e) => setPerformance(Number(e.target.value))}
-            />
-          </label>
-          <button className="primary" disabled={busy} onClick={() => void complete()}>
-            {busy ? '记录中…' : '标记完成'}
-          </button>
-        </div>
+        <>
+          <div className="task-actions">
+            <label>
+              实际分钟
+              <input
+                type="number"
+                min={0}
+                max={600}
+                value={minutes}
+                onChange={(e) => setMinutes(clampNumber(e.target.value, 0, 600))}
+              />
+            </label>
+            <label>
+              完成质量（1–5）
+              <input
+                type="number"
+                min={1}
+                max={5}
+                value={performance}
+                onChange={(e) =>
+                  setPerformance(clampNumber(e.target.value, 1, 5))
+                }
+              />
+            </label>
+            <button className="primary" disabled={busy} onClick={() => void complete()}>
+              {busy ? '记录中…' : '标记完成'}
+            </button>
+          </div>
+          {error && <p className="form-error">{error}</p>}
+        </>
       )}
     </article>
   );
@@ -79,6 +107,8 @@ export default function TodayPage() {
   const [mood, setMood] = useState(3);
   const [focus, setFocus] = useState(3);
   const [note, setNote] = useState('');
+  const [checkinBusy, setCheckinBusy] = useState(false);
+  const [checkinError, setCheckinError] = useState<string | null>(null);
 
   function load(): void {
     api
@@ -99,16 +129,29 @@ export default function TodayPage() {
   useEffect(load, []);
 
   async function checkIn(): Promise<void> {
-    if (!view) return;
-    await api.checkIn({
-      date: view.date,
-      sleepHours: sleep === '' ? null : Number(sleep),
-      energy,
-      mood,
-      focusSelf: focus,
-      note: note.trim() === '' ? null : note.trim()
-    });
-    load();
+    if (!view || checkinBusy) return;
+    const sleepHours = parseSleep(sleep);
+    if (sleepHours === undefined) {
+      setCheckinError('打卡失败：睡眠小时需在 0–24 之间');
+      return;
+    }
+    setCheckinBusy(true);
+    setCheckinError(null);
+    try {
+      await api.checkIn({
+        date: view.date,
+        sleepHours,
+        energy,
+        mood,
+        focusSelf: focus,
+        note: note.trim() === '' ? null : note.trim()
+      });
+      load();
+    } catch (e) {
+      setCheckinError(`打卡失败：${reasonOf(e)}`);
+    } finally {
+      setCheckinBusy(false);
+    }
   }
 
   if (error) return <div className="center-note">读取今日计划失败：{error}</div>;
@@ -127,9 +170,9 @@ export default function TodayPage() {
 
       {view.plan.mainline ? (
         <TaskCard task={view.plan.mainline} mainline onDone={load} />
-      ) : (
+      ) : view.plan.supporting.length === 0 ? (
         <div className="empty">今天的计划已清空。休息，或做一次自由复习。</div>
-      )}
+      ) : null}
 
       {view.plan.supporting.length > 0 && (
         <div className="supporting">
@@ -192,8 +235,13 @@ export default function TodayPage() {
           一句话记录（可选，只给你自己看）
           <textarea value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
-        <button className="secondary" onClick={() => void checkIn()}>
-          {view.dailyLog ? '更新打卡' : '保存打卡'}
+        {checkinError && <p className="form-error">{checkinError}</p>}
+        <button
+          className="secondary"
+          disabled={checkinBusy}
+          onClick={() => void checkIn()}
+        >
+          {checkinBusy ? '保存中…' : view.dailyLog ? '更新打卡' : '保存打卡'}
         </button>
       </section>
     </section>

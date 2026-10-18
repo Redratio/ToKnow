@@ -4,11 +4,12 @@ import { api } from '../api';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    api.getSettings().then(setSettings).catch(() => setMessage('读取设置失败'));
+    api.getSettings().then(setSettings).catch(() => setLoadFailed(true));
   }, []);
 
   async function backup(): Promise<void> {
@@ -32,11 +33,11 @@ export default function SettingsPage() {
         <p className="muted">所有数据只保存在这台电脑，不会上传。</p>
         <dl className="kv">
           <dt>数据库</dt>
-          <dd>{settings?.dbPath ?? '读取中…'}</dd>
+          <dd>{settings?.dbPath ?? (loadFailed ? '读取失败' : '读取中…')}</dd>
           <dt>备份目录</dt>
-          <dd>{settings?.backupDir ?? '读取中…'}</dd>
+          <dd>{settings?.backupDir ?? (loadFailed ? '读取失败' : '读取中…')}</dd>
           <dt>版本</dt>
-          <dd>{settings?.version ?? '-'}</dd>
+          <dd>{settings?.version ?? (loadFailed ? '读取失败' : '-')}</dd>
         </dl>
         <button className="primary" disabled={busy} onClick={() => void backup()}>
           {busy ? '正在导出…' : '导出备份'}

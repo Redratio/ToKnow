@@ -6,16 +6,19 @@ import TreeNode from '../components/TreeNode';
 
 export default function TreePage() {
   const [tree, setTree] = useState<TreeSubject[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api
       .getTree()
       .then(setTree)
-      .catch((e: unknown) => setError(String(e)));
+      .catch((e: unknown) => setError(String(e)))
+      .finally(() => setLoaded(true));
   }, []);
 
   if (error) return <div className="center-note">读取知识树失败：{error}</div>;
+  if (!loaded) return <div className="center-note">正在读取知识树…</div>;
 
   return (
     <section className="page">
@@ -25,6 +28,10 @@ export default function TreePage() {
           <p className="muted">颜色越深，掌握度越高。P0 由自评与任务完成更新。</p>
         </div>
       </div>
+
+      {tree.length === 0 && (
+        <div className="empty">暂无知识树数据，请重新完成引导。</div>
+      )}
 
       {tree.map((subject) => (
         <section key={subject.id} className="subject-block">
