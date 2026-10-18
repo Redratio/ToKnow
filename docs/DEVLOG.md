@@ -402,3 +402,21 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 
 ### 下次从这里开始
 - Task 9：每日打卡与本地备份，在 `dailyLogRepo` 补 `upsertDailyLog`，并实现备份服务。
+
+---
+
+## 2026-10-18 · Task 8 修复轮 1
+
+### 做了什么
+- `src/main/repositories/treeRepo.ts` 的 `applyEvidence` 统一证据分制：调用方仍传入 0–5 的 `performance`，但内部只做一次 `normalized = performance / 5`，同时用于 `updateMastery` 与 `evidence.performance`。`evidence.expected` 本就是 `current / 5`，现在 `performance` 与 `expected` 都是 0–1，可直接比较，避免 P1 回放证据时出现约 5 倍的偏差。插入处补充列含义注释。
+- `listPlannerNodes`、`listModules`、`listNodes` 补齐父级软删除过滤：除节点自身 `n.deleted_at IS NULL` 外，还要求 `m.deleted_at IS NULL` 与 `s.deleted_at IS NULL`。软删除的科目或模块不再向规划器提供节点。
+- `tests/planService.test.ts` 的完成证据断言改为 `performance ≈ 0.8`（4 / 5），并单独断言 `kind`。
+
+### 验证
+- `npm test -- tests/planService.test.ts`：6 passed（1 file）
+- `npm test`：38 passed（8 files），无回归
+- `npm run typecheck`：通过，无错误
+
+### 决策 / 变化
+- 证据表作为耐久审计与校准来源，内部一致性优先于「原样存原始分」；原始 0–5 语义由调用方契约承担，已在 JSDoc 与插入注释中写明。
+- 软删除过滤与现有 repository 风格保持一致；未新增依赖、未改 schema。

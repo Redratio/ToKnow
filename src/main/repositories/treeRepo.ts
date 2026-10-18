@@ -31,7 +31,8 @@ export function listPlannerNodes(
        JOIN subject s ON s.id = m.subject_id
        LEFT JOIN user_node_state uns
          ON uns.node_id = n.id AND uns.profile_id = s.profile_id
-       WHERE s.profile_id = ? AND n.deleted_at IS NULL`
+       WHERE s.profile_id = ? AND n.deleted_at IS NULL
+         AND m.deleted_at IS NULL AND s.deleted_at IS NULL`
     )
     .all(profileId) as {
     node_id: string;
@@ -58,8 +59,9 @@ export function listPlannerNodes(
 
 /**
  * 写入一次学习证据并更新节点掌握度。
- * `performance` 使用界面/自评的 0–5 分制，原样落入 `evidence.performance`；
- * `updateMastery` 需要 0–1 的表现分，因此调用前除以 5。
+ * 调用方传入界面/自评的 0–5 分制 `performance`；内部除以 5 归一化为 0–1。
+ * `evidence.performance` 与 `evidence.expected` 都存 0–1，二者可直接比较；
+ * `updateMastery` 同样接收 0–1 表现分。
  * 掌握度不被夹到 `targetMastery`：目标只是达标阈值，允许超额掌握。
  */
 export function applyEvidence(
@@ -78,9 +80,10 @@ export function applyEvidence(
     .get(profileId, nodeId) as { mastery: number; confidence: number } | undefined;
 
   const current = state?.mastery ?? 0;
+  const normalized = performance / 5;
   const expected = current / 5;
   const weight = EVIDENCE_ALPHA[kind];
-  const next = updateMastery(current, performance / 5, weight);
+  const next = updateMastery(current, normalized, weight);
   const confidence = Math.min(1, (state?.confidence ?? 0) + 0.05);
 
   if (state) {
@@ -99,11 +102,13 @@ export function applyEvidence(
     ).run(profileId, nodeId, next, confidence, nowMs, nowMs);
   }
 
+  // performance / expected 统一为 0–1（调用方传入的 0–5 已归一化）；
+  // weight 为 EVIDENCE_ALPHA 中该证据类型的 alpha。
   db.prepare(
     `INSERT INTO evidence
       (id, node_id, task_id, kind, performance, expected, weight, meta_json, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)`
-  ).run(randomUUID(), nodeId, taskId, kind, performance, expected, weight, nowMs);
+  ).run(randomUUID(), nodeId, taskId, kind, normalized, expected, weight, nowMs);
 
   return next;
 }
@@ -127,7 +132,7 @@ export function listModules(
     .prepare(
       `SELECT m.* FROM module m
        JOIN subject s ON s.id = m.subject_id
-       WHERE s.profile_id = ? AND m.deleted_at IS NULL
+       WHERE s.profile_id = ? AND m.deleted_at IS NULL AND s.deleted_at IS NULL
        ORDER BY m.order_index`
     )
     .all(profileId) as ModuleRow[];
@@ -141,6 +146,7 @@ export function listNodes(db: Database.Database, profileId: string): NodeRow[] {
        JOIN module m ON m.id = n.module_id
        JOIN subject s ON s.id = m.subject_id
        WHERE s.profile_id = ? AND n.deleted_at IS NULL
+         AND m.deleted_at IS NULL AND s.deleted_at IS NULL
        ORDER BY n.order_index`
     )
     .all(profileId) as NodeRow[];

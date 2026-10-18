@@ -60,7 +60,9 @@ describe('completeTask', () => {
     const evidence = db
       .prepare('SELECT kind, performance FROM evidence WHERE task_id = ?')
       .all(task.id) as { kind: string; performance: number }[];
-    expect(evidence).toEqual([{ kind: 'task_completion', performance: 4 }]);
+    expect(evidence).toHaveLength(1);
+    expect(evidence[0].kind).toBe('task_completion');
+    expect(evidence[0].performance).toBeCloseTo(0.8);
     db.close();
   });
 
