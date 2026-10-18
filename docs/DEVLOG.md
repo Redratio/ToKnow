@@ -374,3 +374,31 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 
 ### 决策 / 变化
 - 按修订后的简报逐字实现，无其他改动；未新增依赖。
+
+---
+
+## 2026-10-18 · Task 8：计划服务、任务完成与知识树读取
+
+### 做了什么
+- `src/shared/types.ts` 追加 `TodayView`、`CompleteTaskResult`、`BackupResult`。
+- 新建 `src/main/repositories/taskRepo.ts`：任务插入、任务-节点关联、按日查询、按 ID 查询、标记完成、读取关联节点；所有查询带 `deleted_at IS NULL`。
+- 新建 `src/main/repositories/treeRepo.ts`：规划器节点读取（`mastery` 缺失补 0）、证据写入 `applyEvidence`（更新 `user_node_state` 并落 `evidence`）、科目 / 模块 / 节点 / 状态读取。
+- 新建 `src/main/repositories/dailyLogRepo.ts`：本任务只实现只读 `getDailyLog`，`upsertDailyLog` 留给 Task 9。
+- 新建 `src/main/services/planService.ts`：`generateDailyPlan` 调用纯函数 `selectDailyPlan` 落库为 1 主线 + 2 配套任务，同日幂等；`completeTask` 在事务内标记完成、写 `task_completion` 弱证据并更新掌握度，重复完成不重复写证据。
+- 新建 `src/main/services/todayService.ts`：展示聚合层，读取计划、任务完成计数、剩余天数与打卡；不参与规划。
+- 新建 `src/main/services/treeService.ts`：把科目 / 模块 / 节点组装为嵌套 `TreeSubject[]`，节点按 `orderIndex` 排序。
+- 新增 `tests/planService.test.ts`（6 个用例）。
+
+### 验证
+- `npm test -- tests/planService.test.ts`：RED（`Cannot find module '../src/main/services/planService'`）→ GREEN，6 passed（1 file）
+- `npm test`：38 passed（8 files），无回归
+- `npm run typecheck`：通过，无错误
+
+### 决策 / 变化
+- 证据分制边界统一：`applyEvidence` 接收界面使用的 0–5 分 `performance`，原样写入 `evidence.performance`，仅在调用 `updateMastery` 前除以 5 归一化。任务简报原文在 `completeTask` 里先除以 5 再传入，会导致 `evidence.performance` 变成 0.8，与简报测试期望的 4 冲突；以测试与 `evidence` 的 0–5 语义为准，已在报告中记录偏离。
+- `targetMastery` 仍只作达标阈值，`applyEvidence` 不把掌握度夹到目标值，保留超额掌握信息。
+- 隐私边界保持：`planService.ts` 不导入 `dailyLogRepo`，不读取日记 / 反思文本；`todayService.ts` 是唯一读取 `daily_log` 的服务。
+- 未新增依赖、未改 schema、未提前实现 Task 9 的打卡写入。
+
+### 下次从这里开始
+- Task 9：每日打卡与本地备份，在 `dailyLogRepo` 补 `upsertDailyLog`，并实现备份服务。

@@ -159,3 +159,22 @@ export interface MoveTaskInput {
   taskId: string;
   date: string;
 }
+
+export interface TodayView {
+  date: string;
+  daysLeft: number;
+  plan: DailyPlan;
+  dailyLog: DailyLog | null;
+  completedCount: number;
+  totalCount: number;
+}
+
+export interface CompleteTaskResult {
+  task: Task;
+  mastery: Record<string, number>;
+}
+
+export interface BackupResult {
+  dbPath: string;
+  jsonPath: string;
+}
