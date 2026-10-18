@@ -335,6 +335,31 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 
 ---
 
+## 2026-10-18 · Task 7 修复轮 1
+
+### 做了什么
+- 按设计文档 8.2 重写 `src/shared/mastery.ts`，替换首版公式：
+  - 接口由 `updateMastery(current, performance, expected, weight)` 改为 `updateMastery(current, performance, alpha)`。
+  - 预期表现不再固定为 3，而是 `expected = current / 5`；`next = clamp(current + alpha × (performance - expected), 0, 5)`，保留两位小数。
+  - `performance` 明确为归一化到 0–1 的表现分（调用方负责把 0–5 的自评除以 5），已写入 JSDoc。
+  - 新增 `EvidenceKind` 与 `EVIDENCE_ALPHA`：真题 0.35 / 普通练习 0.25 / 自测 0.2 / 看课完成 0.1 / 自评修正 0.15。任务完成使用固定弱权重，弱证据成为代码机制而非调用方约定。
+- 按修订后的简报替换 `tests/mastery.test.ts` 为 5 个用例：`EVIDENCE_ALPHA` 权重表、表现等于预期时稳定、单次任务完成只小幅移动、0–5 边界、两位小数舍入。
+
+### 验证
+- `npm test -- tests/mastery.test.ts`：RED（`EVIDENCE_ALPHA` 未定义，旧签名返回 `NaN`）→ GREEN，5 passed（1 file）
+- `npm test`：32 passed（7 files），无回归
+- `npm run typecheck`：通过，无错误
+
+### 决策 / 变化
+- 与设计文档 8.2 对齐：掌握度的“预期”应随当前水平变化，而不是所有节点都假设预期为 3。
+- `alpha` 仍作为参数传入，但唯一合法来源是 `EVIDENCE_ALPHA`；服务层必须按证据类型取值。
+- 未改动其他任务文件，未新增依赖。
+
+### 下次从这里开始
+- 后续任务：任务完成服务使用 `EVIDENCE_ALPHA.task_completion` 调用 `updateMastery`，自评使用 `EVIDENCE_ALPHA.self_rating`，并同步写入 `evidence`。
+
+---
+
 ## 2026-10-18 · Task 6 修复轮 1
 
 ### 做了什么
