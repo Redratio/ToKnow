@@ -46,15 +46,39 @@ export async function exportBackup(
     exportedAt: now.toISOString(),
     profile,
     subjects: profile ? listSubjects(db, profile.id) : [],
+    // 以下各表都只导出当前 profile 的数据；.db 副本仍是完整数据库。
     nodes: (
-      db.prepare('SELECT * FROM knowledge_node WHERE deleted_at IS NULL').all() as NodeRow[]
+      profile
+        ? (db
+            .prepare(
+              `SELECT n.* FROM knowledge_node n
+               JOIN module m ON m.id = n.module_id
+               JOIN subject s ON s.id = m.subject_id
+               WHERE s.profile_id = ? AND n.deleted_at IS NULL
+                 AND m.deleted_at IS NULL AND s.deleted_at IS NULL`
+            )
+            .all(profile.id) as NodeRow[])
+        : []
     ).map(mapNode),
     states: (
-      db.prepare('SELECT * FROM user_node_state').all() as StateRow[]
+      profile
+        ? (db
+            .prepare('SELECT * FROM user_node_state WHERE profile_id = ?')
+            .all(profile.id) as StateRow[])
+        : []
     ).map(mapState),
     tasks: (
-      db.prepare('SELECT * FROM task WHERE deleted_at IS NULL').all() as TaskRow[]
-    ).map(mapTask),
+      profile
+        ? (db
+            .prepare(
+              'SELECT * FROM task WHERE profile_id = ? AND deleted_at IS NULL'
+            )
+            .all(profile.id) as TaskRow[])
+        : []
+    )
+      // 任务备注与日记原文同属反思层原文：JSON 默认导出置空，
+      // `.db` 副本保留原文。
+      .map((row) => ({ ...mapTask(row), notes: null })),
     // 反思层原文不进入默认导出：保留数值字段，note 置空。
     dailyLogs: (
       profile

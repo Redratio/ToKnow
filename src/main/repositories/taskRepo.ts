@@ -35,6 +35,20 @@ export function linkTaskNode(
   nodeId: string,
   weight = 1
 ): void {
+  // 任务与节点必须属于同一个 profile：沿 node → module → subject 校验，
+  // 防止跨 profile 的节点被挂到本 profile 的任务上。
+  const owned = db
+    .prepare(
+      `SELECT 1
+       FROM task t
+       JOIN knowledge_node n ON n.id = ?
+       JOIN module m ON m.id = n.module_id
+       JOIN subject s ON s.id = m.subject_id
+       WHERE t.id = ? AND t.profile_id = s.profile_id
+         AND n.deleted_at IS NULL AND m.deleted_at IS NULL AND s.deleted_at IS NULL`
+    )
+    .get(nodeId, taskId);
+  if (!owned) throw new Error('NODE_NOT_FOUND');
   db.prepare(
     `INSERT OR REPLACE INTO task_node (task_id, node_id, weight) VALUES (?, ?, ?)`
   ).run(taskId, nodeId, weight);
@@ -55,11 +69,34 @@ export function listTasksForDate(
   return rows.map(mapTask);
 }
 
-export function getTaskById(db: Database.Database, taskId: string): Task | null {
-  const row = db
-    .prepare('SELECT * FROM task WHERE id = ? AND deleted_at IS NULL')
-    .get(taskId) as TaskRow | undefined;
+export function getTaskById(
+  db: Database.Database,
+  taskId: string,
+  profileId?: string
+): Task | null {
+  const row = (
+    profileId
+      ? db
+          .prepare(
+            'SELECT * FROM task WHERE id = ? AND profile_id = ? AND deleted_at IS NULL'
+          )
+          .get(taskId, profileId)
+      : db
+          .prepare('SELECT * FROM task WHERE id = ? AND deleted_at IS NULL')
+          .get(taskId)
+  ) as TaskRow | undefined;
   return row ? mapTask(row) : null;
+}
+
+export function markTaskMainline(
+  db: Database.Database,
+  taskId: string,
+  nowMs: number
+): void {
+  db.prepare(
+    `UPDATE task SET is_mainline = 1, updated_at = ?
+     WHERE id = ? AND deleted_at IS NULL`
+  ).run(nowMs, taskId);
 }
 
 export function markTaskDone(

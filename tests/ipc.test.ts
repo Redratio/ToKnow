@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { createHandlers } from '../src/main/ipc';
+import { describe, expect, it, vi } from 'vitest';
+import { createHandlers, registerIpc } from '../src/main/ipc';
+import { IPC } from '../src/shared/ipc';
 import { makeTestDb } from './helpers/db';
 
 describe('ipc handlers', () => {
@@ -46,6 +47,30 @@ describe('ipc handlers', () => {
 
     expect(handlers.getTree()).toHaveLength(4);
     expect(handlers.getSettings().dbPath).toBe(':memory:');
+    db.close();
+  });
+
+  it('registers every IPC constant exactly once', () => {
+    const registered: string[] = [];
+    const handle = vi.fn((channel: string) => {
+      registered.push(channel);
+    });
+    const ipcMain = { handle } as unknown as Parameters<typeof registerIpc>[0];
+    const db = makeTestDb();
+
+    registerIpc(
+      ipcMain,
+      createHandlers({
+        db,
+        dbPath: ':memory:',
+        backupDir: 'C:/tmp/toknow-test',
+        version: '0.1.0'
+      })
+    );
+
+    expect(handle).toHaveBeenCalledTimes(Object.keys(IPC).length);
+    expect(registered).toHaveLength(Object.keys(IPC).length);
+    expect(new Set(registered)).toEqual(new Set(Object.values(IPC)));
     db.close();
   });
 });

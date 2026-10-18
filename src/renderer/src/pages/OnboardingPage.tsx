@@ -47,6 +47,11 @@ export default function OnboardingPage({
       onDone(profile);
     } catch (e) {
       const raw = String(e);
+      if (raw.includes('PROFILE_EXISTS')) {
+        setErrors(['本机已存在档案，不能重复完成引导。']);
+        setSaving(false);
+        return;
+      }
       const codes = raw.includes('INVALID_ONBOARDING:')
         ? raw.split('INVALID_ONBOARDING:')[1].split(',')
         : [];
@@ -65,7 +70,7 @@ export default function OnboardingPage({
         <div className="brand">ToKnow</div>
         <h1>先把目标定清楚</h1>
         <p className="muted">
-          这些信息只保存在本机。之后可以随时在设置里调整。
+          这些信息只保存在本机。请确认无误；当前版本暂不支持在设置里修改。
         </p>
 
         <label>

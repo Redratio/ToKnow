@@ -20,6 +20,7 @@ import {
   listTasksForMonth,
   updateTaskDate
 } from '../repositories/taskRepo';
+import { nodeBelongsToProfile } from '../repositories/treeRepo';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -123,6 +124,9 @@ export function createManualTask(
   ) {
     throw new Error('INVALID_TASK_MINUTES');
   }
+  if (input.nodeId && !nodeBelongsToProfile(db, input.nodeId, profileId)) {
+    throw new Error('NODE_NOT_FOUND');
+  }
 
   const task: Task = {
     id: randomUUID(),
@@ -157,10 +161,9 @@ export function rescheduleTask(
   nowMs: number
 ): Task {
   assertDate(input.date);
-  const task = getTaskById(db, input.taskId);
-  if (!task || task.profileId !== profileId) {
-    throw new Error('TASK_NOT_FOUND');
-  }
+  const task = getTaskById(db, input.taskId, profileId);
+  if (!task) throw new Error('TASK_NOT_FOUND');
+  if (task.isMainline) throw new Error('MAINLINE_LOCKED');
   updateTaskDate(db, task.id, input.date, nowMs);
-  return getTaskById(db, task.id)!;
+  return getTaskById(db, task.id, profileId)!;
 }

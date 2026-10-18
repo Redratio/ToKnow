@@ -67,4 +67,33 @@ describe('submitOnboarding', () => {
 
     db.close();
   });
+
+  it('rejects a second onboarding without changing the database', () => {
+    const db = makeTestDb();
+    const first = submitOnboarding(db, validInput, '2026-10-18');
+    const snapshot = () =>
+      db
+        .prepare(
+          `SELECT
+             (SELECT COUNT(*) FROM study_profile) AS profiles,
+             (SELECT COUNT(*) FROM subject) AS subjects,
+             (SELECT COUNT(*) FROM module) AS modules,
+             (SELECT COUNT(*) FROM knowledge_node) AS nodes,
+             (SELECT COUNT(*) FROM user_node_state) AS states`
+        )
+        .get();
+
+    const before = snapshot();
+    expect(() =>
+      submitOnboarding(
+        db,
+        { ...validInput, name: '另一次引导' },
+        '2026-10-18'
+      )
+    ).toThrow('PROFILE_EXISTS');
+    expect(snapshot()).toEqual(before);
+    expect(getActiveProfile(db)?.id).toBe(first.id);
+
+    db.close();
+  });
 });

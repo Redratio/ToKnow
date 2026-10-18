@@ -26,6 +26,13 @@ function reasonOf(error: unknown): string {
   return marker >= 0 ? raw.slice(marker + 7) : raw;
 }
 
+function moveErrorOf(error: unknown): string {
+  const reason = reasonOf(error);
+  return reason.includes('MAINLINE_LOCKED')
+    ? '主线任务不能改期，请留在原日期'
+    : reason;
+}
+
 export default function CalendarPage() {
   const today = getStudyDate(new Date());
   const [cursor, setCursor] = useState(() => {
@@ -135,7 +142,7 @@ export default function CalendarPage() {
       await refresh();
       setMessage('已改期');
     } catch (err) {
-      setError(`改期失败：${reasonOf(err)}`);
+      setError(`改期失败：${moveErrorOf(err)}`);
     } finally {
       setMoving(false);
     }
@@ -224,11 +231,16 @@ export default function CalendarPage() {
             {day?.tasks.map((task) => (
               <li
                 key={task.id}
-                className={`cal-task${task.status === 'done' ? ' done' : ''}`}
-                draggable={!moving}
-                onDragStart={(event) =>
-                  event.dataTransfer.setData('text/task-id', task.id)
-                }
+                className={`cal-task${task.status === 'done' ? ' done' : ''}${task.isMainline ? ' mainline' : ''}`}
+                draggable={!moving && !task.isMainline}
+                title={task.isMainline ? '主线任务不可改期' : undefined}
+                onDragStart={(event) => {
+                  if (task.isMainline) {
+                    event.preventDefault();
+                    return;
+                  }
+                  event.dataTransfer.setData('text/task-id', task.id);
+                }}
               >
                 <input
                   type="checkbox"
@@ -274,7 +286,7 @@ export default function CalendarPage() {
 
           {message && <p className="message">{message}</p>}
           <p className="muted">
-            打卡在<Link to="/">今日</Link>完成；勾选任务会按计划时长记一条弱证据。
+            打卡在<Link to="/">今日</Link>完成；勾选任务时，只有关联了知识节点的任务才会写入学习证据。
           </p>
         </aside>
       </div>

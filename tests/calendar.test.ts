@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { upsertDailyLog } from '../src/main/repositories/dailyLogRepo';
+import { linkTaskNode } from '../src/main/repositories/taskRepo';
 import {
   createManualTask,
   getDayView,
@@ -8,7 +9,11 @@ import {
 } from '../src/main/services/calendarService';
 import { generateDailyPlan } from '../src/main/services/planService';
 import { seedTargetTree } from '../src/main/seed/targetTree';
-import { insertTestProfile, makeTestDb } from './helpers/db';
+import {
+  insertTestNode,
+  insertTestProfile,
+  makeTestDb
+} from './helpers/db';
 
 const now = Date.parse('2026-10-18T12:00:00+08:00');
 
@@ -74,6 +79,86 @@ describe('manual tasks', () => {
     const month = getMonthView(db, 'profile-test', 2026, 10);
     expect(month.days.find((d) => d.date === '2026-10-20')?.taskCount).toBe(0);
     expect(month.days.find((d) => d.date === '2026-10-22')?.taskCount).toBe(1);
+    db.close();
+  });
+
+  it('locks the mainline but still moves supporting and non-mainline manual tasks', () => {
+    const db = seededDb();
+    const plan = generateDailyPlan(db, 'profile-test', '2026-10-18', now);
+    const mainline = plan.mainline!;
+    const supporting = plan.supporting[0];
+
+    expect(() =>
+      rescheduleTask(
+        db,
+        'profile-test',
+        { taskId: mainline.id, date: '2026-10-19' },
+        now + 1_000
+      )
+    ).toThrow('MAINLINE_LOCKED');
+
+    const storedMainline = db
+      .prepare('SELECT scheduled_date, is_mainline FROM task WHERE id = ?')
+      .get(mainline.id) as { scheduled_date: string; is_mainline: number };
+    expect(storedMainline.scheduled_date).toBe('2026-10-18');
+    expect(storedMainline.is_mainline).toBe(1);
+
+    const movedSupporting = rescheduleTask(
+      db,
+      'profile-test',
+      { taskId: supporting.id, date: '2026-10-19' },
+      now + 2_000
+    );
+    expect(movedSupporting.scheduledDate).toBe('2026-10-19');
+
+    const manual = createManualTask(
+      db,
+      'profile-test',
+      { title: '普通手动任务', date: '2026-10-20', plannedMin: 30 },
+      now + 3_000
+    );
+    const movedManual = rescheduleTask(
+      db,
+      'profile-test',
+      { taskId: manual.id, date: '2026-10-21' },
+      now + 4_000
+    );
+    expect(movedManual.scheduledDate).toBe('2026-10-21');
+    db.close();
+  });
+
+  it('rejects linking a node owned by another profile', () => {
+    const db = seededDb();
+    insertTestProfile(db, 'profile-other');
+    const foreignNode = insertTestNode(db, 'profile-other', 'foreign-node');
+    const ownTask = createManualTask(
+      db,
+      'profile-test',
+      { title: '本档案任务', date: '2026-10-20', plannedMin: 30 },
+      now
+    );
+
+    expect(() =>
+      createManualTask(
+        db,
+        'profile-test',
+        {
+          title: '跨档案节点',
+          date: '2026-10-20',
+          plannedMin: 30,
+          nodeId: foreignNode
+        },
+        now + 1_000
+      )
+    ).toThrow('NODE_NOT_FOUND');
+    expect(() => linkTaskNode(db, ownTask.id, foreignNode)).toThrow(
+      'NODE_NOT_FOUND'
+    );
+
+    const linked = db
+      .prepare('SELECT COUNT(*) AS c FROM task_node WHERE node_id = ?')
+      .get(foreignNode) as { c: number };
+    expect(linked.c).toBe(0);
     db.close();
   });
 

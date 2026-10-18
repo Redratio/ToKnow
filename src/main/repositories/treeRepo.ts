@@ -58,6 +58,28 @@ export function listPlannerNodes(
 }
 
 /**
+ * 节点是否属于该 profile：knowledge_node → module → subject → profile_id。
+ * 用于拒绝把别的 profile 的节点挂到任务上或写入证据。
+ */
+export function nodeBelongsToProfile(
+  db: Database.Database,
+  nodeId: string,
+  profileId: string
+): boolean {
+  const row = db
+    .prepare(
+      `SELECT 1
+       FROM knowledge_node n
+       JOIN module m ON m.id = n.module_id
+       JOIN subject s ON s.id = m.subject_id
+       WHERE n.id = ? AND s.profile_id = ?
+         AND n.deleted_at IS NULL AND m.deleted_at IS NULL AND s.deleted_at IS NULL`
+    )
+    .get(nodeId, profileId);
+  return row !== undefined;
+}
+
+/**
  * 写入一次学习证据并更新节点掌握度。
  * 调用方传入界面/自评的 0–5 分制 `performance`；内部除以 5 归一化为 0–1。
  * `evidence.performance` 与 `evidence.expected` 都存 0–1，二者可直接比较；
@@ -73,6 +95,9 @@ export function applyEvidence(
   performance: number,
   nowMs: number
 ): number {
+  if (!nodeBelongsToProfile(db, nodeId, profileId)) {
+    throw new Error('NODE_NOT_FOUND');
+  }
   const state = db
     .prepare(
       'SELECT mastery, confidence FROM user_node_state WHERE profile_id = ? AND node_id = ?'

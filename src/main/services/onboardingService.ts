@@ -33,6 +33,15 @@ export function submitOnboarding(
   input: OnboardingInput,
   today = getStudyDate(new Date())
 ): Profile {
+  // P0 只支持单档案。重复提交会在种子数据的主键上撞车并留下旧档案，
+  // 因此在任何写入之前明确拒绝。
+  const existing = db
+    .prepare(
+      'SELECT 1 FROM study_profile WHERE deleted_at IS NULL LIMIT 1'
+    )
+    .get();
+  if (existing) throw new Error('PROFILE_EXISTS');
+
   const errors = validateOnboarding(input, today);
   if (errors.length > 0) {
     throw new Error(`INVALID_ONBOARDING:${errors.join(',')}`);
