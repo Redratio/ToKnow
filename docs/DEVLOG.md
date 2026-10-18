@@ -171,3 +171,24 @@ P0 在 `src/shared/privacy.ts` 落地访问矩阵并在 `tests/privacy.test.ts` 
 
 ### 下次从这里开始
 - 从 Task 2 开始逐任务实现；Task 12 之前不要提前写日历代码，避免与 Task 11 的 Layout/App 改动冲突。
+
+---
+
+## 2026-10-18 · Task 2：共享类型与 04:00 日期边界
+
+### 做了什么
+- 新建 `src/shared/date.ts`：`getStudyDate(now, boundaryHour = 4)` 与 `daysBetween(fromDate, toDate)`。
+- 新建 `src/shared/types.ts`：P0 全部领域类型，并加入日历相关类型（`CalendarDay`、`CalendarMonthView`、`CalendarDayView`、`CreateTaskInput`、`MoveTaskInput`）。
+- 用 5 个真实日期边界用例替换 Task 1 的占位测试。
+
+### 验证
+- `npm test -- tests/date.test.ts`：5 passed（1 file）
+- `npm run typecheck`：通过，无错误
+- 提交 `2269102`，仅含 3 个任务文件
+
+### 决策 / 变化
+- 学习日边界固定为 04:00；`daysBetween` 对反向日期返回 0。
+- 已知 minor（暂不处理）：日期函数使用本机时区（与 `Profile.timezone` 尚未打通）；非法日期会返回 `NaN` 而不是抛错。
+
+### 下次从这里开始
+- Task 3：SQLite 连接、Schema、迁移、行映射与 `src/shared/privacy.ts` 访问策略。
